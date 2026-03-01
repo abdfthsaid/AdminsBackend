@@ -26,7 +26,10 @@ const { PORT = 4000 } = process.env;
 // 🛠️ App setup
 const app = express();
 
-// 🚫 Rate limiting for admin dashboard
+// � Trust proxy - required for Render deployment
+app.set("trust proxy", 1);
+
+// �🚫 Rate limiting for admin dashboard
 const dashboardLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 300,
