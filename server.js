@@ -29,7 +29,7 @@ const app = express();
 // � Trust proxy - required for Render deployment
 app.set("trust proxy", 1);
 
-// �🚫 Rate limiting for admin dashboard
+// � Rate limiting for admin dashboard
 const dashboardLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 300,
@@ -91,17 +91,18 @@ app.use((err, req, res, next) => {
 });
 
 // ⏱️ Auto update station stats every 15 minutes
-setInterval(
-  async () => {
-    try {
-      console.log("⏱️ Updating station stats...");
-      await updateStationStats();
-    } catch (err) {
-      console.error("❌ Station stats update failed:", err.message);
-    }
-  },
-  15 * 60 * 1000,
-);
+// DISABLED: Uncomment when HeyCharge credentials are configured in Render environment
+// setInterval(
+//   async () => {
+//     try {
+//       console.log("⏱️ Updating station stats...");
+//       await updateStationStats();
+//     } catch (err) {
+//       console.error("❌ Station stats update failed:", err.message);
+//     }
+//   },
+//   15 * 60 * 1000,
+// );
 
 // 🚨 Global error handlers
 process.on("uncaughtException", (err) => {
