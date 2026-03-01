@@ -91,18 +91,17 @@ app.use((err, req, res, next) => {
 });
 
 // ⏱️ Auto update station stats every 15 minutes
-// DISABLED: Uncomment when HeyCharge credentials are configured in Render environment
-// setInterval(
-//   async () => {
-//     try {
-//       console.log("⏱️ Updating station stats...");
-//       await updateStationStats();
-//     } catch (err) {
-//       console.error("❌ Station stats update failed:", err.message);
-//     }
-//   },
-//   15 * 60 * 1000,
-// );
+setInterval(
+  async () => {
+    try {
+      console.log("⏱️ Updating station stats...");
+      await updateStationStats();
+    } catch (err) {
+      console.error("❌ Station stats update failed:", err.message);
+    }
+  },
+  15 * 60 * 1000,
+);
 
 // 🚨 Global error handlers
 process.on("uncaughtException", (err) => {
