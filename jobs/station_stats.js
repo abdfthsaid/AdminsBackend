@@ -27,6 +27,14 @@ const stationCache = {};
  * and writes a consolidated snapshot to Firestore.
  */
 export async function updateStationStats() {
+  // Skip if HeyCharge credentials not configured
+  if (!HEYCHARGE_API_KEY || !HEYCHARGE_DOMAIN) {
+    console.log(
+      "⚠️ HeyCharge credentials not configured, skipping station stats update",
+    );
+    return;
+  }
+
   const now = Timestamp.now();
 
   for (const imei of stations) {
@@ -187,14 +195,16 @@ export async function updateStationStats() {
         // If no slot available → skip (shouldn’t happen unless >8 rentals — log it)
         if (!assignedSlot) {
           console.log(
-            `⚠️ No virtual slot available for rental ${doc.id}, battery ${battery_id}`
+            `⚠️ No virtual slot available for rental ${doc.id}, battery ${battery_id}`,
           );
           continue;
         }
 
         // Validate data
         if (!timestamp || !amount) {
-          console.log(`⚠️ Skipping rental ${doc.id}: missing timestamp or amount`);
+          console.log(
+            `⚠️ Skipping rental ${doc.id}: missing timestamp or amount`,
+          );
           continue;
         }
 
@@ -223,7 +233,7 @@ export async function updateStationStats() {
 
       // 10. Finalize slots and counts
       const slots = Array.from(slotMap.values()).sort(
-        (a, b) => parseInt(a.slot_id) - parseInt(b.slot_id)
+        (a, b) => parseInt(a.slot_id) - parseInt(b.slot_id),
       );
       const totalSlots = slots.length;
       const availableCount = slots.filter((s) => s.status === "Online").length;
@@ -249,7 +259,7 @@ export async function updateStationStats() {
         });
 
       console.log(
-        `✅ Updated ${imei}: total=${totalSlots} avail=${availableCount} rented=${rentedCount} overdue=${overdueCount}`
+        `✅ Updated ${imei}: total=${totalSlots} avail=${availableCount} rented=${rentedCount} overdue=${overdueCount}`,
       );
     } catch (err) {
       console.error(`❌ Error for station ${imei}:`, err.message);
