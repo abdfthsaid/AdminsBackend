@@ -138,7 +138,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ⏱️ Auto update station stats every 15 minutes
+// ⏱️ Auto update station stats every 30 minutes (reduced frequency to prevent server overload)
 setInterval(
   async () => {
     try {
@@ -150,10 +150,10 @@ setInterval(
       // Job failed but server continues running - error is logged and isolated
     }
   },
-  15 * 60 * 1000,
+  30 * 60 * 1000, // 30 minutes
 );
 
-console.log("✅ Station stats auto-update is ENABLED (every 15 minutes)");
+console.log("✅ Station stats auto-update is ENABLED (every 30 minutes)");
 
 // 🏥 Health check endpoint
 app.get("/health", (req, res) => {

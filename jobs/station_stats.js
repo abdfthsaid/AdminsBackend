@@ -45,7 +45,7 @@ export async function updateStationStats() {
       const url = `${HEYCHARGE_DOMAIN}/v1/station/${imei}`;
       const { data } = await axios.get(url, {
         auth: { username: HEYCHARGE_API_KEY, password: "" },
-        timeout: 10000, // 10 second timeout to prevent hanging
+        timeout: 5000, // 5 second timeout to prevent hanging
       });
 
       const rawBatteries = data.batteries || [];
