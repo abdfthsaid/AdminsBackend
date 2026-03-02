@@ -54,15 +54,6 @@ function getMonthBoundsUTC3() {
   return { startUtc, monthKey };
 }
 
-// ✅ IMEI to stationCode mapping
-const imeiToStationCode = {
-  WSEP161721195358: "58",
-  WSEP161741066504: "04",
-  WSEP161741066505: "05",
-  WSEP161741066502: "02",
-  WSEP161741066503: "03",
-};
-
 // ✅ Helper: calculate unique rentals by transactionId (no double count)
 const calculateUniqueRevenue = (snapshot) => {
   let total = 0;
