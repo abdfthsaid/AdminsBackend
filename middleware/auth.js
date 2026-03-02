@@ -20,6 +20,24 @@ export function authenticateToken(req, res, next) {
   }
 }
 
+// Middleware to check if user has at least 'user' role (any authenticated user)
+export function requireUser(req, res, next) {
+  const validRoles = ["user", "moderator", "admin"];
+  if (!validRoles.includes(req.user.role)) {
+    return res.status(403).json({ error: "User access required." });
+  }
+  next();
+}
+
+// Middleware to check if user is moderator or admin
+export function requireModerator(req, res, next) {
+  const validRoles = ["moderator", "admin"];
+  if (!validRoles.includes(req.user.role)) {
+    return res.status(403).json({ error: "Moderator access required." });
+  }
+  next();
+}
+
 // Middleware to check if user is admin
 export function requireAdmin(req, res, next) {
   if (req.user.role !== "admin") {

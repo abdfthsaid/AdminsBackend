@@ -2,6 +2,7 @@
 import express from "express";
 import db from "../config/firebase.js";
 import { Timestamp } from "firebase-admin/firestore";
+import { authenticateToken, requireUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ function getWeekNumber(d) {
 }
 
 // ✅ Route accepts IMEI, converts to stationCode internally
-router.get("/:imei", async (req, res) => {
+router.get("/:imei", authenticateToken, requireUser, async (req, res) => {
   try {
     const { imei } = req.params;
     const stationCode = imeiToStationCode[imei];

@@ -1,10 +1,11 @@
 import express from "express";
 import moment from "moment";
 import db from "../config/firebase.js";
+import { authenticateToken, requireUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/all", async (req, res) => {
+router.get("/all", authenticateToken, requireUser, async (req, res) => {
   try {
     const rentalsSnapshot = await db.collection("rentals").get();
 
@@ -46,7 +47,7 @@ router.get("/all", async (req, res) => {
     const formatChart = (obj, isSet = false) => {
       const labels = Object.keys(obj).sort();
       const data = labels.map((label) =>
-        isSet ? Array.from(obj[label]).length : obj[label]
+        isSet ? Array.from(obj[label]).length : obj[label],
       );
       return { labels, data };
     };

@@ -1,7 +1,12 @@
 import express from "express";
 import db from "../config/firebase.js";
 import { Timestamp } from "firebase-admin/firestore";
-import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import {
+  authenticateToken,
+  requireAdmin,
+  requireModerator,
+  requireUser,
+} from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -11,8 +16,8 @@ function normalizePhone(phone) {
   return digits.slice(-9);
 }
 
-// 🚫 GET all blacklisted users (ADMIN ONLY)
-router.get("/", authenticateToken, requireAdmin, async (req, res) => {
+// 🚫 GET all blacklisted users (Moderator and Admin can view)
+router.get("/", authenticateToken, requireModerator, async (req, res) => {
   try {
     const snapshot = await db.collection("blacklist").get();
     const blacklist = snapshot.docs.map((doc) => ({
@@ -26,8 +31,8 @@ router.get("/", authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// 🚫 ADD user to blacklist (ADMIN ONLY)
-router.post("/", authenticateToken, requireAdmin, async (req, res) => {
+// 🚫 ADD user to blacklist (Moderator and Admin can add)
+router.post("/", authenticateToken, requireModerator, async (req, res) => {
   const { phoneNumber, reason, customerName } = req.body;
 
   if (!phoneNumber) {

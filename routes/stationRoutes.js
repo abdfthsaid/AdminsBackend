@@ -5,7 +5,11 @@ import express from "express";
 import db from "../config/firebase.js";
 import { imeiToStationCode } from "../utils/imeiMap.js";
 import axios from "axios";
-import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import {
+  authenticateToken,
+  requireAdmin,
+  requireUser,
+} from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -71,51 +75,61 @@ router.post("/add", authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // 📍 Update station by IMEI — partial update allowed, keeps others from Firestore
-router.put("/update/:imei", async (req, res) => {
-  const { imei } = req.params;
-  const updates = req.body;
+router.put(
+  "/update/:imei",
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    const { imei } = req.params;
+    const updates = req.body;
 
-  try {
-    const stationRef = db.collection("stations").doc(imei);
-    const doc = await stationRef.get();
+    try {
+      const stationRef = db.collection("stations").doc(imei);
+      const doc = await stationRef.get();
 
-    if (!doc.exists) {
-      return res.status(404).json({ error: "Station not found ❌" });
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Station not found ❌" });
+      }
+
+      // ✅ Only update provided fields — others stay as-is
+      await stationRef.update({
+        ...updates,
+        updatedAt: new Date(),
+      });
+
+      res.status(200).json({ message: "Station updated successfully ✅" });
+    } catch (error) {
+      console.error("Update Error:", error);
+      res.status(500).json({ error: "Failed to update station ❌" });
     }
-
-    // ✅ Only update provided fields — others stay as-is
-    await stationRef.update({
-      ...updates,
-      updatedAt: new Date(),
-    });
-
-    res.status(200).json({ message: "Station updated successfully ✅" });
-  } catch (error) {
-    console.error("Update Error:", error);
-    res.status(500).json({ error: "Failed to update station ❌" });
-  }
-});
+  },
+);
 
 // 🗑️ Delete station by IMEI
-router.delete("/delete/:imei", async (req, res) => {
-  const { imei } = req.params;
+router.delete(
+  "/delete/:imei",
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    const { imei } = req.params;
 
-  try {
-    const stationRef = db.collection("stations").doc(imei);
-    const doc = await stationRef.get();
+    try {
+      const stationRef = db.collection("stations").doc(imei);
+      const doc = await stationRef.get();
 
-    if (!doc.exists) {
-      return res.status(404).json({ error: "Station not found ❌" });
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Station not found ❌" });
+      }
+
+      await stationRef.delete();
+
+      res.status(200).json({ message: "Station deleted successfully 🗑️✅" });
+    } catch (error) {
+      console.error("Delete Error:", error);
+      res.status(500).json({ error: "Failed to delete station ❌" });
     }
-
-    await stationRef.delete();
-
-    res.status(200).json({ message: "Station deleted successfully 🗑️✅" });
-  } catch (error) {
-    console.error("Delete Error:", error);
-    res.status(500).json({ error: "Failed to delete station ❌" });
-  }
-});
+  },
+);
 
 // // // 🔌 HeyCharge API integration
 
@@ -192,8 +206,8 @@ const { HEYCHARGE_API_KEY, HEYCHARGE_DOMAIN } = process.env;
 //   }
 // });
 
-// GET /api/stations/basic - MUST be before :imei routes!
-router.get("/basic", async (req, res) => {
+// GET /api/stations/basic - MUST be before :imei routes! (All authenticated users can view)
+router.get("/basic", authenticateToken, requireUser, async (req, res) => {
   try {
     const stationsSnap = await db.collection("stations").get();
 
@@ -220,8 +234,8 @@ router.get("/basic", async (req, res) => {
   }
 });
 
-// GET all station stats
-router.get("/stats", async (req, res) => {
+// GET all station stats (All authenticated users can view)
+router.get("/stats", authenticateToken, requireUser, async (req, res) => {
   try {
     const snap = await db.collection("station_stats").get();
     const stations = [];

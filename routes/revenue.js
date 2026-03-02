@@ -1,6 +1,8 @@
 import express from "express";
 import db from "../config/firebase.js";
 import { Timestamp } from "firebase-admin/firestore";
+import { imeiToStationCode } from "../utils/imeiMap.js";
+import { authenticateToken, requireUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -11,7 +13,7 @@ const SOMALIA_OFFSET_HOURS = 3;
 function getDayBoundsUTC3() {
   const now = new Date();
   const somaliaTime = new Date(
-    now.getTime() + SOMALIA_OFFSET_HOURS * 60 * 60 * 1000
+    now.getTime() + SOMALIA_OFFSET_HOURS * 60 * 60 * 1000,
   );
 
   const somaliaYear = somaliaTime.getUTCFullYear();
@@ -20,11 +22,11 @@ function getDayBoundsUTC3() {
 
   const startUtc = new Date(
     Date.UTC(somaliaYear, somaliaMonth, somaliaDay) -
-      SOMALIA_OFFSET_HOURS * 60 * 60 * 1000
+      SOMALIA_OFFSET_HOURS * 60 * 60 * 1000,
   );
   const dateStr = `${somaliaYear}-${String(somaliaMonth + 1).padStart(
     2,
-    "0"
+    "0",
   )}-${String(somaliaDay).padStart(2, "0")}`;
 
   return { startUtc, dateStr };
@@ -34,7 +36,7 @@ function getDayBoundsUTC3() {
 function getMonthBoundsUTC3() {
   const now = new Date();
   const somaliaTime = new Date(
-    now.getTime() + SOMALIA_OFFSET_HOURS * 60 * 60 * 1000
+    now.getTime() + SOMALIA_OFFSET_HOURS * 60 * 60 * 1000,
   );
 
   const somaliaYear = somaliaTime.getUTCFullYear();
@@ -42,11 +44,11 @@ function getMonthBoundsUTC3() {
 
   const startUtc = new Date(
     Date.UTC(somaliaYear, somaliaMonth, 1) -
-      SOMALIA_OFFSET_HOURS * 60 * 60 * 1000
+      SOMALIA_OFFSET_HOURS * 60 * 60 * 1000,
   );
   const monthKey = `${somaliaYear}-${String(somaliaMonth + 1).padStart(
     2,
-    "0"
+    "0",
   )}`;
 
   return { startUtc, monthKey };
@@ -100,7 +102,7 @@ const calculateUniqueRevenue = (snapshot) => {
 };
 
 // ✅ DAILY REVENUE FOR SINGLE STATION (by IMEI) - UTC+3 Somalia
-router.get("/daily/:imei", async (req, res) => {
+router.get("/daily/:imei", authenticateToken, requireUser, async (req, res) => {
   const imei = req.params.imei;
   const stationCode = imeiToStationCode[imei];
 
@@ -134,7 +136,7 @@ router.get("/daily/:imei", async (req, res) => {
 });
 
 // ✅ DAILY REVENUE FOR ALL STATIONS - UTC+3 Somalia
-router.get("/daily", async (req, res) => {
+router.get("/daily", authenticateToken, requireUser, async (req, res) => {
   const { startUtc, dateStr } = getDayBoundsUTC3();
 
   try {
@@ -160,41 +162,46 @@ router.get("/daily", async (req, res) => {
 });
 
 // ✅ MONTHLY REVENUE FOR SINGLE STATION (by IMEI) - UTC+3 Somalia
-router.get("/monthly/:imei", async (req, res) => {
-  const imei = req.params.imei;
-  const stationCode = imeiToStationCode[imei];
+router.get(
+  "/monthly/:imei",
+  authenticateToken,
+  requireUser,
+  async (req, res) => {
+    const imei = req.params.imei;
+    const stationCode = imeiToStationCode[imei];
 
-  if (!stationCode) {
-    return res.status(400).json({ error: `Unknown IMEI ${imei}` });
-  }
+    if (!stationCode) {
+      return res.status(400).json({ error: `Unknown IMEI ${imei}` });
+    }
 
-  const { startUtc, monthKey } = getMonthBoundsUTC3();
+    const { startUtc, monthKey } = getMonthBoundsUTC3();
 
-  try {
-    const snapshot = await db
-      .collection("rentals")
-      .where("stationCode", "==", stationCode)
-      .where("timestamp", ">=", Timestamp.fromDate(startUtc))
-      .where("status", "in", ["rented", "returned"])
-      .get();
+    try {
+      const snapshot = await db
+        .collection("rentals")
+        .where("stationCode", "==", stationCode)
+        .where("timestamp", ">=", Timestamp.fromDate(startUtc))
+        .where("status", "in", ["rented", "returned"])
+        .get();
 
-    const { total, count } = calculateUniqueRevenue(snapshot);
+      const { total, count } = calculateUniqueRevenue(snapshot);
 
-    res.json({
-      imei,
-      stationCode,
-      totalRevenueMonthly: total,
-      totalRentalsThisMonth: count,
-      month: monthKey,
-    });
-  } catch (error) {
-    console.error("❌ Error calculating monthly revenue:", error);
-    res.status(500).json({ error: "Failed to calculate monthly revenue ❌" });
-  }
-});
+      res.json({
+        imei,
+        stationCode,
+        totalRevenueMonthly: total,
+        totalRentalsThisMonth: count,
+        month: monthKey,
+      });
+    } catch (error) {
+      console.error("❌ Error calculating monthly revenue:", error);
+      res.status(500).json({ error: "Failed to calculate monthly revenue ❌" });
+    }
+  },
+);
 
 // ✅ MONTHLY REVENUE FOR ALL STATIONS - UTC+3 Somalia
-router.get("/monthly", async (req, res) => {
+router.get("/monthly", authenticateToken, requireUser, async (req, res) => {
   const { startUtc, monthKey } = getMonthBoundsUTC3();
 
   try {

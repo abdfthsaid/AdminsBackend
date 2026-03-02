@@ -1,15 +1,16 @@
 import express from "express";
 import db from "../config/firebase.js";
 import { Timestamp } from "firebase-admin/firestore";
+import { authenticateToken, requireUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/latest", async (req, res) => {
+router.get("/latest", authenticateToken, requireUser, async (req, res) => {
   try {
     // Get date 2 days ago
     const now = Timestamp.now();
     const twoDaysAgo = Timestamp.fromDate(
-      new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     );
 
     // Step 1: Filter only recent "rented" transactions
