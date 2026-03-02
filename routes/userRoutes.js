@@ -25,12 +25,12 @@ router.post("/add", authenticateToken, requireAdmin, async (req, res) => {
       .json({ error: "username, password, role, and email are required ❌" });
   }
 
-  if (!["admin", "user"].includes(role)) {
+  if (!["admin", "moderator", "user"].includes(role)) {
     return res
 
       .status(400)
 
-      .json({ error: "Role must be 'admin' or 'user' only ❌" });
+      .json({ error: "Role must be 'admin', 'moderator', or 'user' ❌" });
   }
 
   try {
@@ -97,12 +97,12 @@ router.put("/update", authenticateToken, requireAdmin, async (req, res) => {
       .json({ error: "Provide 'id' or 'username' to update user ❌" });
   }
 
-  if (updates.role && !["admin", "user"].includes(updates.role)) {
+  if (updates.role && !["admin", "moderator", "user"].includes(updates.role)) {
     return res
 
       .status(400)
 
-      .json({ error: "Role must be 'admin' or 'user' only ❌" });
+      .json({ error: "Role must be 'admin', 'moderator', or 'user' ❌" });
   }
 
   try {
