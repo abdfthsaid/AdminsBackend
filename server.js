@@ -139,22 +139,21 @@ app.use((err, req, res, next) => {
 });
 
 // ⏱️ Auto update station stats every 15 minutes
-// 🚫 TEMPORARILY DISABLED - Re-enable after other issues are resolved
-// setInterval(
-//   async () => {
-//     try {
-//       console.log("⏱️ Updating station stats...");
-//       await updateStationStats();
-//     } catch (err) {
-//       console.error("❌ Station stats update failed:", err.message);
-//       console.error("Stack trace:", err.stack);
-//       // Job failed but server continues running - error is logged and isolated
-//     }
-//   },
-//   15 * 60 * 1000,
-// );
+setInterval(
+  async () => {
+    try {
+      console.log("⏱️ Updating station stats...");
+      await updateStationStats();
+    } catch (err) {
+      console.error("❌ Station stats update failed:", err.message);
+      console.error("Stack trace:", err.stack);
+      // Job failed but server continues running - error is logged and isolated
+    }
+  },
+  15 * 60 * 1000,
+);
 
-console.log("⚠️ Station stats auto-update is DISABLED");
+console.log("✅ Station stats auto-update is ENABLED (every 15 minutes)");
 
 // 🏥 Health check endpoint
 app.get("/health", (req, res) => {
