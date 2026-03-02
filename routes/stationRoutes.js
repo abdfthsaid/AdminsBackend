@@ -5,11 +5,12 @@ import express from "express";
 import db from "../config/firebase.js";
 import { imeiToStationCode } from "../utils/imeiMap.js";
 import axios from "axios";
+import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // 📍 Add new station to Firestore (with uniqueness check)
-router.post("/add", async (req, res) => {
+router.post("/add", authenticateToken, requireAdmin, async (req, res) => {
   const { imei, name, iccid, location = "", totalSlots = 6 } = req.body;
 
   if (!imei || !name || !iccid) {

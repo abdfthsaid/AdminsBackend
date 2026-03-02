@@ -1,5 +1,6 @@
 import express from "express";
 import db from "../config/firebase.js";
+import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 import { Timestamp } from "firebase-admin/firestore";
@@ -22,7 +23,7 @@ function getMonthRange() {
 }
 
 // ✅ GET /api/stats/today/:station
-router.get("/today/:station", async (req, res) => {
+router.get("/today/:station", authenticateToken, async (req, res) => {
   const { station } = req.params;
   const [start, end] = getTodayRange();
 
@@ -42,7 +43,7 @@ router.get("/today/:station", async (req, res) => {
 });
 
 // ✅ GET /api/stats/month/:station
-router.get("/month/:station", async (req, res) => {
+router.get("/month/:station", authenticateToken, async (req, res) => {
   const { station } = req.params;
   const [start, end] = getMonthRange();
 
@@ -62,7 +63,7 @@ router.get("/month/:station", async (req, res) => {
 });
 
 // ✅ GET /api/stats/summary
-router.get("/summary", async (req, res) => {
+router.get("/summary", authenticateToken, async (req, res) => {
   const [start, end] = getTodayRange();
   try {
     const snapshot = await db
