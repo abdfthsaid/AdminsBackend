@@ -98,22 +98,72 @@ setInterval(
       await updateStationStats();
     } catch (err) {
       console.error("❌ Station stats update failed:", err.message);
+      console.error("Stack trace:", err.stack);
+      // Job failed but server continues running - error is logged and isolated
     }
   },
   15 * 60 * 1000,
 );
 
-// 🚨 Global error handlers
+// 🏥 Health check endpoint
+app.get("/health", (req, res) => {
+  const memoryUsage = process.memoryUsage();
+  const uptime = process.uptime();
+
+  res.json({
+    status: "healthy",
+    uptime: Math.floor(uptime),
+    memory: {
+      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + " MB",
+      heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + " MB",
+      rss: Math.round(memoryUsage.rss / 1024 / 1024) + " MB",
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 🚨 Global error handlers - Improved to prevent crashes
 process.on("uncaughtException", (err) => {
   console.error("❌ UNCAUGHT EXCEPTION:", err);
-  console.error(err.stack);
-  process.exit(1);
+  console.error("Stack:", err.stack);
+  console.error(
+    "⚠️ Server continuing despite uncaught exception - please investigate!",
+  );
+  // Don't exit - log and continue (unless it's a critical error)
+  if (err.code === "EADDRINUSE" || err.code === "EACCES") {
+    console.error("🚨 Critical error - exiting");
+    process.exit(1);
+  }
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("❌ UNHANDLED REJECTION at:", promise);
   console.error("Reason:", reason);
+  console.error(
+    "⚠️ Server continuing despite unhandled rejection - please investigate!",
+  );
+  // Don't crash - log and continue
 });
+
+// 🧹 Memory monitoring
+setInterval(
+  () => {
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+
+    // Log memory usage every hour
+    console.log(`💾 Memory: ${heapUsedMB}MB / ${heapTotalMB}MB`);
+
+    // Alert if memory usage is high (>400MB)
+    if (heapUsedMB > 400) {
+      console.warn(
+        `⚠️ HIGH MEMORY USAGE: ${heapUsedMB}MB - consider investigating`,
+      );
+    }
+  },
+  60 * 60 * 1000,
+); // Every hour
 
 // 🚀 Server start
 const server = app.listen(PORT, () => {

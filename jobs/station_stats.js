@@ -36,13 +36,16 @@ export async function updateStationStats() {
   }
 
   const now = Timestamp.now();
+  let successCount = 0;
+  let failureCount = 0;
 
   for (const imei of stations) {
     try {
-      // 1. Fetch live station data from HeyCharge
+      // 1. Fetch live station data from HeyCharge with timeout
       const url = `${HEYCHARGE_DOMAIN}/v1/station/${imei}`;
       const { data } = await axios.get(url, {
         auth: { username: HEYCHARGE_API_KEY, password: "" },
+        timeout: 10000, // 10 second timeout to prevent hanging
       });
 
       const rawBatteries = data.batteries || [];
@@ -261,29 +264,54 @@ export async function updateStationStats() {
       console.log(
         `✅ Updated ${imei}: total=${totalSlots} avail=${availableCount} rented=${rentedCount} overdue=${overdueCount}`,
       );
+      successCount++;
     } catch (err) {
+      failureCount++;
       console.error(`❌ Error for station ${imei}:`, err.message);
-      const errMeta = stationCache[imei] || {};
-      await db
-        .collection("station_stats")
-        .doc(imei)
-        .set({
-          id: imei,
-          stationCode: imei,
-          imei,
-          name: errMeta.name || "",
-          location: errMeta.location || "",
-          iccid: errMeta.iccid || "",
-          station_status: "Offline",
-          totalSlots: 0,
-          availableCount: 0,
-          rentedCount: 0,
-          overdueCount: 0,
-          timestamp: Timestamp.now(),
-          batteries: [],
-          message: "❌ Failed to fetch station info",
-        });
+
+      // Write error to database for monitoring
+      try {
+        const errMeta = stationCache[imei] || {};
+        await db
+          .collection("station_stats")
+          .doc(imei)
+          .set({
+            id: imei,
+            stationCode: imei,
+            imei,
+            name: errMeta.name || "",
+            location: errMeta.location || "",
+            iccid: errMeta.iccid || "",
+            station_status: "Offline",
+            totalSlots: 0,
+            availableCount: 0,
+            rentedCount: 0,
+            overdueCount: 0,
+            timestamp: Timestamp.now(),
+            batteries: [],
+            message: `❌ Error: ${err.message}`,
+            lastError: err.message,
+            lastErrorTime: Timestamp.now(),
+          });
+      } catch (dbErr) {
+        console.error(
+          `❌ Failed to write error state for ${imei}:`,
+          dbErr.message,
+        );
+      }
     }
+  }
+
+  // Summary logging
+  console.log(
+    `📊 Station stats update complete: ${successCount} succeeded, ${failureCount} failed out of ${stations.length} total`,
+  );
+
+  // Alert if all stations failed
+  if (failureCount === stations.length) {
+    console.error(
+      "🚨 ALERT: All station updates failed! Check HeyCharge API connectivity.",
+    );
   }
 }
 
