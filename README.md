@@ -19,9 +19,11 @@ Secured admin dashboard API with JWT authentication for managing powerbank renta
 All endpoints require JWT authentication (except login).
 
 ### Authentication
+
 - `POST /api/users/login` - Admin login (returns JWT token)
 
 ### User Management
+
 - `POST /api/users/add` - Add new admin user
 - `PUT /api/users/update` - Update user
 - `DELETE /api/users/delete` - Delete user
@@ -29,12 +31,14 @@ All endpoints require JWT authentication (except login).
 - `GET /api/users/one` - Get one user
 
 ### Station Management
+
 - `GET /api/stations` - Get all stations
 - `POST /api/stations` - Add new station
 - `PUT /api/stations/:id` - Update station
 - `DELETE /api/stations/:id` - Delete station
 
 ### Analytics
+
 - `GET /api/stats` - Get system statistics
 - `GET /api/revenue` - Get revenue data
 - `GET /api/customers` - Get customer data
@@ -43,6 +47,7 @@ All endpoints require JWT authentication (except login).
 - `GET /api/chartsAll` - Get all charts data
 
 ### Blacklist
+
 - `GET /api/blacklist` - Get all blacklisted numbers
 - `POST /api/blacklist` - Add to blacklist
 - `DELETE /api/blacklist/:id` - Remove from blacklist
@@ -54,7 +59,15 @@ Create a `.env` file (see `.env.example`):
 ```env
 FIREBASE_CREDENTIALS_B64=your_base64_credentials
 JWT_SECRET=danab_power_secret_key_2024
+HEYCHARGE_API_KEY=your_heycharge_api_key
+HEYCHARGE_DOMAIN=https://openapi.heycharge.global
+PORT=4000
 ```
+
+**Required for station stats auto-update:**
+
+- `HEYCHARGE_API_KEY` - HeyCharge API authentication key
+- `HEYCHARGE_DOMAIN` - HeyCharge API base URL
 
 ## 📦 Installation
 
@@ -99,6 +112,7 @@ headers: {
 ## 📊 Database
 
 Uses Firebase Firestore:
+
 - `system_users` - Admin users
 - `stations` - Station information
 - `rentals` - Transaction records
@@ -116,7 +130,11 @@ Uses Firebase Firestore:
 3. Set environment variables:
    - `FIREBASE_CREDENTIALS_B64`
    - `JWT_SECRET`
+   - `HEYCHARGE_API_KEY` (required for station stats)
+   - `HEYCHARGE_DOMAIN` (required for station stats)
 4. Deploy with: `node server.js`
+
+**⚠️ Important:** Without HeyCharge credentials, the station stats auto-update job will be skipped (backend will still work for all other features).
 
 ## 🔐 Security Features
 
@@ -130,6 +148,7 @@ Uses Firebase Firestore:
 ## 📝 Logs
 
 All requests are logged with format:
+
 ```
 [ADMIN] METHOD /path - STATUS - DURATIONms - IP: address
 ```
