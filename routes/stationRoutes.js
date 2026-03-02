@@ -238,7 +238,7 @@ router.get("/stats", async (req, res) => {
 });
 
 // GET /api/stations/stats/:imei
-router.get("/stats/:imei", async (req, res) => {
+router.get("/stats/:imei", authenticateToken, async (req, res) => {
   const { imei } = req.params;
 
   try {
