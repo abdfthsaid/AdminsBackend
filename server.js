@@ -47,11 +47,11 @@ const dashboardLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Very strict rate limiting for unauthenticated requests
+// 🚫 ULTRA STRICT: Block almost all unauthenticated traffic
 const strictLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 10, // Only 10 requests per minute for unauthenticated
-  message: "Too many requests from your IP ⏳",
+  max: 1, // Only 1 request per minute for unauthenticated (extremely strict)
+  message: "Access denied. Too many requests.",
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
@@ -61,10 +61,32 @@ const strictLimiter = rateLimit({
   },
 });
 
+// 🛡️ Middleware to block all unauthenticated requests except login and health
+const blockUnauthenticated = (req, res, next) => {
+  // Allow health check and login without auth
+  if (req.path === "/health" || req.path === "/api/users/login") {
+    return next();
+  }
+
+  // Check for valid auth token
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.log(
+      `🚫 BLOCKED unauthenticated request: ${req.method} ${req.path} from IP: ${req.ip}`,
+    );
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  next();
+};
+
 app.use(cors());
 app.use(bodyParser.json());
 
-// �️ Apply strict rate limiting globally to prevent bot spam
+// 🛡️ FIRST: Block all unauthenticated traffic (except login/health)
+app.use(blockUnauthenticated);
+
+// 🛡️ SECOND: Apply strict rate limiting to remaining unauthenticated requests
 app.use(strictLimiter);
 
 // � Request logging
