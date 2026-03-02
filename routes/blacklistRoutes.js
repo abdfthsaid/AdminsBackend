@@ -14,7 +14,7 @@ function normalizePhone(phone) {
 // 🚫 GET all blacklisted users (ADMIN ONLY)
 router.get("/", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const snapshot = await db.collection("blacklistnumbers").get();
+    const snapshot = await db.collection("blacklist").get();
     const blacklist = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -39,7 +39,7 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
 
     // Check if already blacklisted (by normalized phone)
     const existing = await db
-      .collection("blacklistnumbers")
+      .collection("blacklist")
       .where("normalizedPhone", "==", normalizedPhone)
       .limit(1)
       .get();
@@ -50,7 +50,7 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
         .json({ error: "Phone number already blacklisted" });
     }
 
-    const docRef = await db.collection("blacklistnumbers").add({
+    const docRef = await db.collection("blacklist").add({
       phoneNumber,
       normalizedPhone,
       reason: reason || "Did not return battery",
@@ -70,7 +70,7 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // 🚫 CHECK if phone number is blacklisted (uses normalizedPhone for fast query)
-router.get("/check/:phoneNumber", async (req, res) => {
+router.get("/check/:phoneNumber", authenticateToken, async (req, res) => {
   const { phoneNumber } = req.params;
   const normalized = normalizePhone(phoneNumber);
 
@@ -84,7 +84,7 @@ router.get("/check/:phoneNumber", async (req, res) => {
 
   try {
     const snapshot = await db
-      .collection("blacklistnumbers")
+      .collection("blacklist")
       .where("normalizedPhone", "==", normalized)
       .limit(1)
       .get();
@@ -107,7 +107,7 @@ router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
-    await db.collection("blacklistnumbers").doc(id).delete();
+    await db.collection("blacklist").doc(id).delete();
     res.json({ success: true, message: "User removed from blacklist" });
   } catch (err) {
     console.error("❌ Error removing from blacklist:", err);
@@ -121,7 +121,7 @@ export async function isPhoneBlacklisted(phoneNumber) {
   if (normalized.length < 8) return false;
 
   const snapshot = await db
-    .collection("blacklistnumbers")
+    .collection("blacklist")
     .where("normalizedPhone", "==", normalized)
     .limit(1)
     .get();
