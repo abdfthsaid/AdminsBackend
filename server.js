@@ -67,7 +67,7 @@ app.use(bodyParser.json());
 // �️ Apply strict rate limiting globally to prevent bot spam
 app.use(strictLimiter);
 
-// �📊 Request logging
+// � Request logging
 app.use((req, res, next) => {
   const start = Date.now();
   res.on("finish", () => {
@@ -194,6 +194,8 @@ setInterval(
 // 🚀 Server start
 const server = app.listen(PORT, () => {
   console.log(`✅ Admin Server running on port ${PORT}`);
+  console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log(`📡 Health check: http://localhost:${PORT}/health`);
 });
 
 // 🛑 Graceful shutdown
