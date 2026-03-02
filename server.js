@@ -29,19 +29,45 @@ const app = express();
 // � Trust proxy - required for Render deployment
 app.set("trust proxy", 1);
 
-// � Rate limiting for admin dashboard
-const dashboardLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 300,
-  message: { error: "Too many requests, please slow down." },
+// 🚫 Rate limiters
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts
+  message: "Too many login attempts, please try again later ⏳",
   standardHeaders: true,
   legacyHeaders: false,
+});
+
+// Stricter rate limiting for dashboard endpoints
+const dashboardLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 100, // Reduced from 300 to 100 requests per minute
+  message: "Too many requests, please slow down ⏳",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Very strict rate limiting for unauthenticated requests
+const strictLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // Only 10 requests per minute for unauthenticated
+  message: "Too many requests from your IP ⏳",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting if request has valid auth token
+    const authHeader = req.headers.authorization;
+    return authHeader && authHeader.startsWith("Bearer ");
+  },
 });
 
 app.use(cors());
 app.use(bodyParser.json());
 
-// 📊 Request logging
+// �️ Apply strict rate limiting globally to prevent bot spam
+app.use(strictLimiter);
+
+// �📊 Request logging
 app.use((req, res, next) => {
   const start = Date.now();
   res.on("finish", () => {
