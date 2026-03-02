@@ -16,8 +16,8 @@ function normalizePhone(phone) {
   return digits.slice(-9);
 }
 
-// 🚫 GET all blacklisted users (Moderator and Admin can view)
-router.get("/", authenticateToken, requireModerator, async (req, res) => {
+// 🚫 GET all blacklisted users (All authenticated users can view)
+router.get("/", authenticateToken, requireUser, async (req, res) => {
   try {
     const snapshot = await db.collection("blacklist").get();
     const blacklist = snapshot.docs.map((doc) => ({
@@ -31,8 +31,8 @@ router.get("/", authenticateToken, requireModerator, async (req, res) => {
   }
 });
 
-// 🚫 ADD user to blacklist (Moderator and Admin can add)
-router.post("/", authenticateToken, requireModerator, async (req, res) => {
+// 🚫 ADD user to blacklist (All authenticated users can add)
+router.post("/", authenticateToken, requireUser, async (req, res) => {
   const { phoneNumber, reason, customerName } = req.body;
 
   if (!phoneNumber) {
@@ -107,13 +107,37 @@ router.get("/check/:phoneNumber", authenticateToken, async (req, res) => {
   }
 });
 
-// 🚫 REMOVE user from blacklist (ADMIN ONLY)
-router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
+// 🚫 DELETE user from blacklist (All authenticated users can delete, with tracking)
+router.delete("/:id", authenticateToken, requireUser, async (req, res) => {
   const { id } = req.params;
 
   try {
+    // Get the blacklist entry before deleting to log details
+    const doc = await db.collection("blacklist").doc(id).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Blacklist entry not found" });
+    }
+
+    const blacklistData = doc.data();
+    const deletedBy = req.user.username || req.user.id;
+
+    // Log who deleted the entry
+    console.log(
+      `🗑️ Blacklist entry deleted by: ${deletedBy} (${req.user.role})`,
+    );
+    console.log(
+      `   Phone: ${blacklistData.phoneNumber}, Reason: ${blacklistData.reason}`,
+    );
+
+    // Delete the entry
     await db.collection("blacklist").doc(id).delete();
-    res.json({ success: true, message: "User removed from blacklist" });
+
+    res.json({
+      success: true,
+      message: "User removed from blacklist",
+      deletedBy: deletedBy,
+    });
   } catch (err) {
     console.error("❌ Error removing from blacklist:", err);
     res.status(500).json({ error: err.message });
