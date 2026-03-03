@@ -309,6 +309,7 @@ router.get("/one", authenticateToken, requireAdmin, async (req, res) => {
 // / Login route
 
 router.post("/login", async (req, res) => {
+  const startTime = Date.now();
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -316,35 +317,35 @@ router.post("/login", async (req, res) => {
   }
 
   try {
+    // Time the database query
+    const dbQueryStart = Date.now();
     const userSnap = await db
-
       .collection("system_users")
-
       .where("username", "==", username)
-
       .limit(1)
-
       .get();
+    const dbQueryTime = Date.now() - dbQueryStart;
+    console.log(
+      `🔍 Login DB query took: ${dbQueryTime}ms for user: ${username}`,
+    );
 
     if (userSnap.empty) {
+      console.log(`❌ Login failed: user not found - ${username}`);
       return res.status(401).json({ error: "Invalid username or password ❌" });
     }
 
     const userDoc = userSnap.docs[0];
-
     const userData = userDoc.data();
 
     if (userData.password !== password) {
+      console.log(`❌ Login failed: wrong password - ${username}`);
       return res.status(401).json({ error: "Invalid username or password ❌" });
     }
 
     // Generate JWT token with 4-hour expiry
-
     const tokenPayload = {
       id: userDoc.id,
-
       username: userData.username,
-
       role: userData.role,
     };
 
@@ -354,26 +355,24 @@ router.post("/login", async (req, res) => {
 
     const expiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour from now
 
+    const totalTime = Date.now() - startTime;
+    console.log(
+      `✅ Login successful for ${username} - Total time: ${totalTime}ms (DB: ${dbQueryTime}ms)`,
+    );
+
     res.json({
       message: "Login successful ✅",
-
       token,
-
       expiresAt,
-
       user: {
         id: userDoc.id,
-
         username: userData.username,
-
         role: userData.role,
-
         email: userData.email || null,
       },
     });
   } catch (error) {
     console.error("Login error:", error);
-
     res.status(500).json({ error: "Login failed ❌" });
   }
 });
