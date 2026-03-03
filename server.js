@@ -84,13 +84,7 @@ const blockUnauthenticated = (req, res, next) => {
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🛡️ FIRST: Block all unauthenticated traffic (except login/health)
-app.use(blockUnauthenticated);
-
-// 🛡️ SECOND: Apply strict rate limiting to remaining unauthenticated requests
-app.use(strictLimiter);
-
-// � Request logging
+// � Request logging (FIRST - log everything)
 app.use((req, res, next) => {
   const start = Date.now();
   res.on("finish", () => {
@@ -107,6 +101,26 @@ app.get("/", (req, res) => {
   res.send("🔐 Admin Server is running!");
 });
 
+// 🏥 Health check endpoint (HIGHEST PRIORITY - no auth needed)
+app.get("/health", (req, res) => {
+  const memoryUsage = process.memoryUsage();
+  const uptime = process.uptime();
+
+  res.json({
+    status: "healthy",
+    uptime: Math.floor(uptime),
+    memory: {
+      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + " MB",
+      heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + " MB",
+      rss: Math.round(memoryUsage.rss / 1024 / 1024) + " MB",
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 🔐 Login route (SECOND HIGHEST PRIORITY - mount before auth middleware)
+app.use("/api/users", loginLimiter, userRoutes);
+
 // 🕐 Server timezone info
 app.get("/api/timezone", (req, res) => {
   const now = new Date();
@@ -119,12 +133,17 @@ app.get("/api/timezone", (req, res) => {
   });
 });
 
-// 📦 Admin Routes (protected with JWT via middleware in routes)
+// 🛡️ NOW: Block all unauthenticated traffic (login/health already mounted above)
+app.use(blockUnauthenticated);
+
+// 🛡️ Apply strict rate limiting to remaining unauthenticated requests
+app.use(strictLimiter);
+
+// 📦 Protected Admin Routes (JWT required via middleware in routes)
 app.use("/api/stations", dashboardLimiter, stationRoutes);
 app.use("/api/stats", dashboardLimiter, statsRoutes);
 app.use("/api/customers", dashboardLimiter, customerRoutes);
 app.use("/api/revenue", dashboardLimiter, revenueRoutes);
-app.use("/api/users", dashboardLimiter, userRoutes);
 app.use("/api/transactions", dashboardLimiter, transactionRoutes);
 app.use("/api/charts", dashboardLimiter, chartsRoute);
 app.use("/api/chartsAll", dashboardLimiter, chartsAll);
@@ -172,23 +191,6 @@ setTimeout(
 console.log(
   "⚠️ Station stats auto-update is TEMPORARILY DISABLED for debugging",
 );
-
-// 🏥 Health check endpoint
-app.get("/health", (req, res) => {
-  const memoryUsage = process.memoryUsage();
-  const uptime = process.uptime();
-
-  res.json({
-    status: "healthy",
-    uptime: Math.floor(uptime),
-    memory: {
-      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + " MB",
-      heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + " MB",
-      rss: Math.round(memoryUsage.rss / 1024 / 1024) + " MB",
-    },
-    timestamp: new Date().toISOString(),
-  });
-});
 
 // 🚨 Global error handlers - Improved to prevent crashes
 process.on("uncaughtException", (err) => {
