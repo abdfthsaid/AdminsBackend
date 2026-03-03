@@ -50,14 +50,15 @@ const dashboardLimiter = rateLimit({
 // 🚫 ULTRA STRICT: Block almost all unauthenticated traffic
 const strictLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 1, // Only 1 request per minute for unauthenticated (extremely strict)
+  max: 10, // Allow 10 requests per minute for unauthenticated (increased from 1 to prevent login delays)
   message: "Access denied. Too many requests.",
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting if request has valid auth token
+    // Skip rate limiting if request has valid auth token OR if it's a login request
     const authHeader = req.headers.authorization;
-    return authHeader && authHeader.startsWith("Bearer ");
+    const isLogin = req.path === "/api/users/login";
+    return (authHeader && authHeader.startsWith("Bearer ")) || isLogin;
   },
 });
 
@@ -139,21 +140,35 @@ app.use((err, req, res, next) => {
 });
 
 // ⏱️ Auto update station stats every 30 minutes (reduced frequency to prevent server overload)
-setInterval(
-  async () => {
-    try {
-      console.log("⏱️ Updating station stats...");
-      await updateStationStats();
-    } catch (err) {
-      console.error("❌ Station stats update failed:", err.message);
-      console.error("Stack trace:", err.stack);
-      // Job failed but server continues running - error is logged and isolated
-    }
-  },
-  30 * 60 * 1000, // 30 minutes
-);
+// Delay first run by 2 minutes to allow server to fully start and handle login requests
+setTimeout(
+  () => {
+    console.log("⏱️ Running first station stats update...");
+    updateStationStats().catch((err) => {
+      console.error("❌ Initial station stats update failed:", err.message);
+    });
 
-console.log("✅ Station stats auto-update is ENABLED (every 30 minutes)");
+    // Then run every 30 minutes
+    setInterval(
+      async () => {
+        try {
+          console.log("⏱️ Updating station stats...");
+          await updateStationStats();
+        } catch (err) {
+          console.error("❌ Station stats update failed:", err.message);
+          console.error("Stack trace:", err.stack);
+          // Job failed but server continues running - error is logged and isolated
+        }
+      },
+      30 * 60 * 1000, // 30 minutes
+    );
+  },
+  2 * 60 * 1000,
+); // Wait 2 minutes before first run
+
+console.log(
+  "✅ Station stats auto-update is ENABLED (first run in 2 minutes, then every 30 minutes)",
+);
 
 // 🏥 Health check endpoint
 app.get("/health", (req, res) => {
