@@ -17,8 +17,10 @@ import transactionRoutes from "./routes/transactionRoutes.js";
 import chartsRoute from "./routes/charts.js";
 import chartsAll from "./routes/chartsAll.js";
 import blacklistRoutes from "./routes/blacklistRoutes.js";
+import cacheRoutes from "./routes/cacheRoutes.js";
 
 import db from "./config/firebase.js";
+import { initializeCache, syncUsersFromFirebase } from "./utils/userCache.js";
 
 // 🌍 ENV
 const { PORT = 4000 } = process.env;
@@ -148,6 +150,7 @@ app.use("/api/transactions", dashboardLimiter, transactionRoutes);
 app.use("/api/charts", dashboardLimiter, chartsRoute);
 app.use("/api/chartsAll", dashboardLimiter, chartsAll);
 app.use("/api/blacklist", dashboardLimiter, blacklistRoutes);
+app.use("/api/cache", dashboardLimiter, cacheRoutes);
 
 // ❌ Express error handling
 app.use((err, req, res, next) => {
@@ -236,10 +239,25 @@ setInterval(
 ); // Every hour
 
 // 🚀 Server start
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`✅ Admin Server running on port ${PORT}`);
   console.log(`🌐 URL: http://localhost:${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
+
+  // Initialize user cache from file
+  initializeCache();
+
+  // Sync users from Firebase to cache (async, non-blocking)
+  setTimeout(async () => {
+    try {
+      await syncUsersFromFirebase(db);
+    } catch (err) {
+      console.error(
+        "⚠️ Initial cache sync failed, will use existing cache:",
+        err.message,
+      );
+    }
+  }, 5000); // Wait 5 seconds after server starts
 });
 
 // 🛑 Graceful shutdown

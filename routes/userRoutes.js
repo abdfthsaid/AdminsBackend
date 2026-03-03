@@ -6,6 +6,8 @@ import db from "../config/firebase.js";
 
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 
+import { getCachedUser, cacheUser } from "../utils/userCache.js";
+
 const JWT_SECRET = process.env.JWT_SECRET || "danab_power_secret_key_2024";
 
 const TOKEN_EXPIRY = "1h"; // 1 hour
@@ -306,7 +308,7 @@ router.get("/one", authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// / Login route
+// / Login route with cache fallback for network failures
 
 router.post("/login", async (req, res) => {
   const startTime = Date.now();
@@ -316,8 +318,12 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ error: "Username and password required ❌" });
   }
 
+  let userData = null;
+  let userId = null;
+  let source = "firebase";
+
   try {
-    // Time the database query
+    // Try Firebase first
     const dbQueryStart = Date.now();
     const userSnap = await db
       .collection("system_users")
@@ -329,52 +335,86 @@ router.post("/login", async (req, res) => {
       `🔍 Login DB query took: ${dbQueryTime}ms for user: ${username}`,
     );
 
-    if (userSnap.empty) {
-      console.log(`❌ Login failed: user not found - ${username}`);
-      return res.status(401).json({ error: "Invalid username or password ❌" });
-    }
+    if (!userSnap.empty) {
+      const userDoc = userSnap.docs[0];
+      userId = userDoc.id;
+      userData = userDoc.data();
 
-    const userDoc = userSnap.docs[0];
-    const userData = userDoc.data();
-
-    if (userData.password !== password) {
-      console.log(`❌ Login failed: wrong password - ${username}`);
-      return res.status(401).json({ error: "Invalid username or password ❌" });
-    }
-
-    // Generate JWT token with 4-hour expiry
-    const tokenPayload = {
-      id: userDoc.id,
-      username: userData.username,
-      role: userData.role,
-    };
-
-    const token = jwt.sign(tokenPayload, JWT_SECRET, {
-      expiresIn: TOKEN_EXPIRY,
-    });
-
-    const expiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour from now
-
-    const totalTime = Date.now() - startTime;
-    console.log(
-      `✅ Login successful for ${username} - Total time: ${totalTime}ms (DB: ${dbQueryTime}ms)`,
-    );
-
-    res.json({
-      message: "Login successful ✅",
-      token,
-      expiresAt,
-      user: {
-        id: userDoc.id,
+      // Cache user for future offline access
+      cacheUser({
+        id: userId,
         username: userData.username,
+        password: userData.password,
         role: userData.role,
         email: userData.email || null,
-      },
-    });
+      });
+    }
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "Login failed ❌" });
+    // Firebase failed - try cache
+    console.warn(
+      `⚠️ Firebase query failed for ${username}, trying cache...`,
+      error.message,
+    );
+    const cachedUser = getCachedUser(username);
+
+    if (cachedUser) {
+      userId = cachedUser.id;
+      userData = cachedUser;
+      source = "cache";
+      console.log(`📦 Using cached credentials for ${username}`);
+    } else {
+      console.error(
+        `❌ Login failed: Firebase down and user not in cache - ${username}`,
+      );
+      return res.status(503).json({
+        error:
+          "Server-ku wuu hurda, fadlan sug 30 ilbiriqsi oo mar kale isku day",
+        details: "Network issue - please try again",
+      });
+    }
   }
+
+  // Check if user exists
+  if (!userData) {
+    console.log(`❌ Login failed: user not found - ${username}`);
+    return res.status(401).json({ error: "Invalid username or password ❌" });
+  }
+
+  // Verify password
+  if (userData.password !== password) {
+    console.log(`❌ Login failed: wrong password - ${username}`);
+    return res.status(401).json({ error: "Invalid username or password ❌" });
+  }
+
+  // Generate JWT token
+  const tokenPayload = {
+    id: userId,
+    username: userData.username,
+    role: userData.role,
+  };
+
+  const token = jwt.sign(tokenPayload, JWT_SECRET, {
+    expiresIn: TOKEN_EXPIRY,
+  });
+
+  const expiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour from now
+
+  const totalTime = Date.now() - startTime;
+  console.log(
+    `✅ Login successful for ${username} via ${source} - Total time: ${totalTime}ms`,
+  );
+
+  res.json({
+    message: "Login successful ✅",
+    token,
+    expiresAt,
+    user: {
+      id: userId,
+      username: userData.username,
+      role: userData.role,
+      email: userData.email || null,
+    },
+  });
 });
 
 // solved
