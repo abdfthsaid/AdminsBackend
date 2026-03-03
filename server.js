@@ -164,7 +164,6 @@ app.use((err, req, res, next) => {
 // ⏱️ Auto update station stats every 30 minutes (reduced frequency to prevent server overload)
 // Delay first run by 2 minutes to allow server to fully start and handle login requests
 // 🚫 TEMPORARILY DISABLED FOR DEBUGGING
-/*
 setTimeout(
   () => {
     console.log("⏱️ Running first station stats update...");
@@ -188,12 +187,13 @@ setTimeout(
     );
   },
   2 * 60 * 1000,
-); // Wait 2 minutes before first run
-*/
+); 
+// Wait 2 minutes before first run
 
-console.log(
-  "⚠️ Station stats auto-update is TEMPORARILY DISABLED for debugging",
-);
+
+// console.log(
+//   "⚠️ Station stats auto-update is TEMPORARILY DISABLED for debugging",
+// );
 
 // 🚨 Global error handlers - Improved to prevent crashes
 process.on("uncaughtException", (err) => {
