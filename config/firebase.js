@@ -12,7 +12,7 @@ let decoded;
 try {
   decoded = Buffer.from(
     process.env.FIREBASE_CREDENTIALS_B64,
-    "base64"
+    "base64",
   ).toString("utf8");
 } catch (err) {
   console.error("❌ Failed to decode base64:", err.message);
@@ -32,4 +32,14 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
+
+// Optimize Firestore settings for faster cold starts
+db.settings({
+  ignoreUndefinedProperties: true,
+  // Reduce connection timeout for faster failures
+  timestampsInSnapshots: true,
+});
+
+console.log("✅ Firebase initialized successfully");
+
 export default db;
